@@ -91,11 +91,31 @@ int main()
         pid_t pid = fork();
         if (pid == 0)
         {
-            stringstream ss(command);
             vector<string> arguments;
             string arg;
+            bool insideQuotes = false;
 
-            while (ss >> arg)
+            for (char c : command)
+            {
+                if (c == '"')
+                {
+                    insideQuotes = !insideQuotes;
+                }
+                else if (c == ' ' && !insideQuotes)
+                {
+                    if (!arg.empty())
+                    {
+                        arguments.push_back(arg);
+                        arg.clear();
+                    }
+                }
+                else
+                {
+                    arg += c;
+                }
+            }
+
+            if (!arg.empty())
             {
                 arguments.push_back(arg);
             }
