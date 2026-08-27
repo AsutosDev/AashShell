@@ -58,15 +58,28 @@ int main()
         if (command.rfind("echo ", 0) == 0)
         {
             string text = command.substr(5);
-
             string result;
+
+            bool insideSingleQuotes = false;
+            bool insideDoubleQuotes = false;
 
             for (size_t i = 0; i < text.length(); i++)
             {
-                if (text[i] == '$')
+                if (text[i] == '\'' && !insideDoubleQuotes)
+                {
+                    insideSingleQuotes = !insideSingleQuotes;
+                    continue;
+                }
+
+                if (text[i] == '"' && !insideSingleQuotes)
+                {
+                    insideDoubleQuotes = !insideDoubleQuotes;
+                    continue;
+                }
+
+                if (text[i] == '$' && !insideSingleQuotes)
                 {
                     string variable;
-
                     i++;
 
                     while (i < text.length() &&
