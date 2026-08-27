@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <cstdlib>
+#include <cctype>
 using namespace std;
 int main()
 {
@@ -52,25 +53,39 @@ int main()
         {
             string text = command.substr(5);
 
-            if (text[0] == '$')
-            {
-                string variable = text.substr(1);
-                const char *value = getenv(variable.c_str());
+            string result;
 
-                if (value != nullptr)
+            for (size_t i = 0; i < text.length(); i++)
+            {
+                if (text[i] == '$')
                 {
-                    cout << value << endl;
+                    string variable;
+
+                    i++;
+
+                    while (i < text.length() &&
+                           (isalnum(text[i]) || text[i] == '_'))
+                    {
+                        variable += text[i];
+                        i++;
+                    }
+
+                    i--;
+
+                    const char *value = getenv(variable.c_str());
+
+                    if (value != nullptr)
+                    {
+                        result += value;
+                    }
                 }
                 else
                 {
-                    cout << "$" << variable << endl;
+                    result += text[i];
                 }
             }
-            else
-            {
-                cout << text << endl;
-            }
 
+            cout << result << endl;
             continue;
         }
         pid_t pid = fork();
