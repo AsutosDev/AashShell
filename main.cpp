@@ -17,6 +17,12 @@ int main()
 
         cout << "aash$ ";
         getline(cin, command);
+        if (command == "exit")
+        {
+            cout << "Exiting AashShell..." << endl;
+            cout << "GoodBye!" << endl;
+            break;
+        }
         if (command == "cd")
         {
             chdir(getenv("HOME"));
