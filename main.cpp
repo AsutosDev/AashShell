@@ -50,7 +50,27 @@ int main()
         }
         if (command.rfind("echo ", 0) == 0)
         {
-            cout << command.substr(5) << endl;
+            string text = command.substr(5);
+
+            if (text[0] == '$')
+            {
+                string variable = text.substr(1);
+                const char *value = getenv(variable.c_str());
+
+                if (value != nullptr)
+                {
+                    cout << value << endl;
+                }
+                else
+                {
+                    cout << "$" << variable << endl;
+                }
+            }
+            else
+            {
+                cout << text << endl;
+            }
+
             continue;
         }
         pid_t pid = fork();
