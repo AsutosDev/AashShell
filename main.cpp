@@ -2,6 +2,8 @@
 #include <string>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sstream>
+#include <vector>
 using namespace std;
 int main(){
     //cout << "Hello from a process!" << endl;
@@ -11,18 +13,56 @@ int main(){
         
         cout << "aash$ ";
         getline(cin,command);
-        if (command == "exit") {
-            cout << "Exiting AashShell..."<< endl;
-            cout <<"GoodBye!" << endl;
-            break;
-        }
-        pid_t pid = fork();
-        if (pid==0){
-        char* args[] = {const_cast<char*>(command.c_str()), nullptr};
-        execvp(args[0], args);
-        cout << "Command not found!" << endl;
-        // cout << "this is a child process with id: " << getpid() <<endl;
+if (command == "cd") {
+    chdir(getenv("HOME"));
+    continue;
+}
+
+if (command.rfind("cd ", 0) == 0) {
+    string path = command.substr(3);
+
+    if (chdir(path.c_str()) != 0) {
+        cout << "cd: directory not found" << endl;
     }
+
+    continue;
+}
+if (command == "pwd") {
+    char cwd[1024];
+
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        cout << cwd << endl;
+    } else {
+        cout << "pwd: error getting current directory" << endl;
+    }
+
+    continue;
+}
+        pid_t pid = fork();
+        if (pid == 0) {
+    stringstream ss(command);
+    vector<string> arguments;
+    string arg;
+
+    while (ss >> arg) {
+        arguments.push_back(arg);
+    }
+    if (arguments.empty()) {
+    exit(0);
+}
+
+    vector<char*> args;
+
+    for (string& argument : arguments) {
+        args.push_back(const_cast<char*>(argument.c_str()));
+    }
+
+    args.push_back(nullptr);
+
+    execvp(args[0], args.data());
+
+    cout << "Command not found!" << endl;
+}
     else if (pid > 0){
         waitpid(pid, NULL, 0);
         // cout << "this is a parent process with id: "<<getpid()<<endl;
