@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cctype>
+#include <fcntl.h>
 using namespace std;
 vector<string> parseArguments(const string &command)
 {
@@ -65,7 +66,70 @@ int main()
             chdir(getenv("HOME"));
             continue;
         }
+        size_t redirectPosition = command.find('>');
         size_t pipePosition = command.find('|');
+        if (redirectPosition != string::npos)
+        {
+            string commandPart = command.substr(0, redirectPosition);
+            string filePart = command.substr(redirectPosition + 1);
+
+            // Remove leading/trailing spaces from filename
+            size_t start = filePart.find_first_not_of(' ');
+            size_t end = filePart.find_last_not_of(' ');
+
+            if (start != string::npos)
+            {
+                filePart = filePart.substr(start, end - start + 1);
+            }
+
+            int fileDescriptor = open(filePart.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            pid_t pid = fork();
+
+            if (pid == 0)
+            {
+                dup2(fileDescriptor, STDOUT_FILENO);
+
+                close(fileDescriptor);
+
+                vector<string> arguments = parseArguments(commandPart);
+
+                if (arguments.empty())
+                {
+                    exit(0);
+                }
+
+                vector<char *> args;
+
+                for (string &argument : arguments)
+                {
+                    args.push_back(const_cast<char *>(argument.c_str()));
+                }
+
+                args.push_back(nullptr);
+
+                execvp(args[0], args.data());
+
+                cout << "Command not found!" << endl;
+                exit(1);
+            }
+            else if (pid > 0)
+            {
+                close(fileDescriptor);
+                waitpid(pid, NULL, 0);
+            }
+            else
+            {
+                close(fileDescriptor);
+                cout << "Fork failed!" << endl;
+            }
+
+            continue;
+            if (fileDescriptor == -1)
+            {
+                cout << "Failed to open file!" << endl;
+                continue;
+            }
+        }
 
         if (pipePosition != string::npos)
         {
