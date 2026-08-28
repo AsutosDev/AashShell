@@ -67,11 +67,35 @@ int main()
             continue;
         }
         size_t redirectPosition = command.find('>');
+        bool appendMode = false;
+
+        if (redirectPosition != string::npos &&
+            redirectPosition + 1 < command.length() &&
+            command[redirectPosition + 1] == '>')
+        {
+            appendMode = true;
+        }
+        if (appendMode &&
+            redirectPosition + 2 < command.length() &&
+            command[redirectPosition + 2] == '>')
+        {
+            cout << "AashShell: invalid redirection" << endl;
+            continue;
+        }
         size_t pipePosition = command.find('|');
         if (redirectPosition != string::npos)
         {
             string commandPart = command.substr(0, redirectPosition);
-            string filePart = command.substr(redirectPosition + 1);
+            string filePart;
+
+            if (appendMode)
+            {
+                filePart = command.substr(redirectPosition + 2);
+            }
+            else
+            {
+                filePart = command.substr(redirectPosition + 1);
+            }
 
             // Remove leading/trailing spaces from filename
             size_t start = filePart.find_first_not_of(' ');
@@ -82,7 +106,18 @@ int main()
                 filePart = filePart.substr(start, end - start + 1);
             }
 
-            int fileDescriptor = open(filePart.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            int flags = O_WRONLY | O_CREAT;
+
+            if (appendMode)
+            {
+                flags |= O_APPEND;
+            }
+            else
+            {
+                flags |= O_TRUNC;
+            }
+
+            int fileDescriptor = open(filePart.c_str(), flags, 0644);
             pid_t pid = fork();
 
             if (pid == 0)
