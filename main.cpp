@@ -67,6 +67,7 @@ int main()
             continue;
         }
         size_t redirectPosition = command.find('>');
+        size_t inputRedirectPosition = command.find('<');
         bool appendMode = false;
 
         if (redirectPosition != string::npos &&
@@ -82,6 +83,70 @@ int main()
             cout << "AashShell: invalid redirection" << endl;
             continue;
         }
+        if (inputRedirectPosition != string::npos)
+        {
+            string commandPart = command.substr(0, inputRedirectPosition);
+            string filePart = command.substr(inputRedirectPosition + 1);
+
+            // Remove leading/trailing spaces from filename
+            size_t start = filePart.find_first_not_of(' ');
+            size_t end = filePart.find_last_not_of(' ');
+
+            if (start != string::npos)
+            {
+                filePart = filePart.substr(start, end - start + 1);
+            }
+
+            int fileDescriptor = open(filePart.c_str(), O_RDONLY);
+
+            if (fileDescriptor == -1)
+            {
+                cout << "Failed to open file!" << endl;
+                continue;
+            }
+            pid_t pid = fork();
+
+            if (pid == 0)
+            {
+                dup2(fileDescriptor, STDIN_FILENO);
+
+                close(fileDescriptor);
+
+                vector<string> arguments = parseArguments(commandPart);
+
+                if (arguments.empty())
+                {
+                    exit(0);
+                }
+
+                vector<char *> args;
+
+                for (string &argument : arguments)
+                {
+                    args.push_back(const_cast<char *>(argument.c_str()));
+                }
+
+                args.push_back(nullptr);
+
+                execvp(args[0], args.data());
+
+                cout << "Command not found!" << endl;
+                exit(1);
+            }
+            else if (pid > 0)
+            {
+                close(fileDescriptor);
+                waitpid(pid, NULL, 0);
+            }
+            else
+            {
+                close(fileDescriptor);
+                cout << "Fork failed!" << endl;
+            }
+
+            continue;
+        }
+
         size_t pipePosition = command.find('|');
         if (redirectPosition != string::npos)
         {
