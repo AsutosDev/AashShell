@@ -7,6 +7,39 @@
 #include <cstdlib>
 #include <cctype>
 using namespace std;
+vector<string> parseArguments(const string &command)
+{
+    vector<string> arguments;
+    string arg;
+    bool insideQuotes = false;
+
+    for (char c : command)
+    {
+        if (c == '"')
+        {
+            insideQuotes = !insideQuotes;
+        }
+        else if (c == ' ' && !insideQuotes)
+        {
+            if (!arg.empty())
+            {
+                arguments.push_back(arg);
+                arg.clear();
+            }
+        }
+        else
+        {
+            arg += c;
+        }
+    }
+
+    if (!arg.empty())
+    {
+        arguments.push_back(arg);
+    }
+
+    return arguments;
+}
 int main()
 {
     // cout << "Hello from a process!" << endl;
@@ -56,14 +89,7 @@ int main()
                 close(pipefd[0]);
                 close(pipefd[1]);
 
-                stringstream ss(firstCommand);
-                vector<string> arguments;
-                string arg;
-
-                while (ss >> arg)
-                {
-                    arguments.push_back(arg);
-                }
+                vector<string> arguments = parseArguments(firstCommand);
 
                 vector<char *> args;
 
@@ -89,14 +115,7 @@ int main()
                 close(pipefd[0]);
                 close(pipefd[1]);
 
-                stringstream ss(secondCommand);
-                vector<string> arguments;
-                string arg;
-
-                while (ss >> arg)
-                {
-                    arguments.push_back(arg);
-                }
+                vector<string> arguments = parseArguments(secondCommand);
 
                 vector<char *> args;
 
@@ -202,39 +221,7 @@ int main()
         pid_t pid = fork();
         if (pid == 0)
         {
-            vector<string> arguments;
-            string arg;
-            bool insideQuotes = false;
-
-            for (char c : command)
-            {
-                if (c == '"')
-                {
-                    insideQuotes = !insideQuotes;
-                }
-                else if (c == ' ' && !insideQuotes)
-                {
-                    if (!arg.empty())
-                    {
-                        arguments.push_back(arg);
-                        arg.clear();
-                    }
-                }
-                else
-                {
-                    arg += c;
-                }
-            }
-
-            if (!arg.empty())
-            {
-                arguments.push_back(arg);
-            }
-            if (arguments.empty())
-            {
-                exit(0);
-            }
-
+            vector<string> arguments = parseArguments(command);
             vector<char *> args;
 
             for (string &argument : arguments)
