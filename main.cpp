@@ -230,10 +230,10 @@ int main()
             }
 
             args.push_back(nullptr);
-
             execvp(args[0], args.data());
 
             cout << "Command not found!" << endl;
+            exit(1);
         }
         else if (pid > 0)
         {
