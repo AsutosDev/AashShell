@@ -391,6 +391,22 @@ int main()
 
             continue;
         }
+        size_t andPosition = command.find("&&");
+
+        if (andPosition != string::npos)
+        {
+            string firstCommand = command.substr(0, andPosition);
+            string secondCommand = command.substr(andPosition + 2);
+
+            int status = executeSimpleCommand(firstCommand);
+
+            if (status == 0)
+            {
+                executeSimpleCommand(secondCommand);
+            }
+
+            continue;
+        }
         if (command.rfind("echo ", 0) == 0)
         {
             string text = command.substr(5);
