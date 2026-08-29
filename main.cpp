@@ -55,7 +55,7 @@ int main()
     while (true)
     {
 
-        cout << "aash$ ";
+        cout << "aash$ " << flush;
         if (!getline(cin, command))
         {
             cout << endl;
