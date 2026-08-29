@@ -441,6 +441,42 @@ int main()
 
             continue;
         }
+        if (command.rfind("unset ", 0) == 0)
+        {
+            string variable = command.substr(6);
+
+            if (variable.empty())
+            {
+                cout << "unset: missing variable name" << endl;
+                continue;
+            }
+
+            bool validVariable = true;
+
+            if (!(isalpha(variable[0]) || variable[0] == '_'))
+            {
+                validVariable = false;
+            }
+
+            for (size_t i = 1; i < variable.length(); i++)
+            {
+                if (!(isalnum(variable[i]) || variable[i] == '_'))
+                {
+                    validVariable = false;
+                    break;
+                }
+            }
+
+            if (!validVariable)
+            {
+                cout << "unset: invalid variable name" << endl;
+                continue;
+            }
+
+            unsetenv(variable.c_str());
+
+            continue;
+        }
         pid_t pid = fork();
         if (pid == 0)
         {
