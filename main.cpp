@@ -186,6 +186,22 @@ int main()
 
             continue;
         }
+        size_t orPosition = command.find("||");
+
+        if (orPosition != string::npos)
+        {
+            string firstCommand = command.substr(0, orPosition);
+            string secondCommand = command.substr(orPosition + 2);
+
+            int status = executeSimpleCommand(firstCommand);
+
+            if (status != 0)
+            {
+                executeSimpleCommand(secondCommand);
+            }
+
+            continue;
+        }
 
         size_t pipePosition = command.find('|');
         if (redirectPosition != string::npos)
