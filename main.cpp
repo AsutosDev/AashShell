@@ -12,15 +12,21 @@ vector<string> parseArguments(const string &command)
 {
     vector<string> arguments;
     string arg;
-    bool insideQuotes = false;
+
+    bool insideSingleQuotes = false;
+    bool insideDoubleQuotes = false;
 
     for (char c : command)
     {
-        if (c == '"')
+        if (c == '\'' && !insideDoubleQuotes)
         {
-            insideQuotes = !insideQuotes;
+            insideSingleQuotes = !insideSingleQuotes;
         }
-        else if (isspace(c) && !insideQuotes)
+        else if (c == '"' && !insideSingleQuotes)
+        {
+            insideDoubleQuotes = !insideDoubleQuotes;
+        }
+        else if (isspace(c) && !insideSingleQuotes && !insideDoubleQuotes)
         {
             if (!arg.empty())
             {
@@ -390,6 +396,31 @@ int main()
             }
 
             cout << result << endl;
+            continue;
+        }
+        if (command.rfind("export ", 0) == 0)
+        {
+            string assignment = command.substr(7);
+
+            size_t equalsPosition = assignment.find('=');
+
+            if (equalsPosition == string::npos)
+            {
+                cout << "export: invalid syntax" << endl;
+                continue;
+            }
+
+            string variable = assignment.substr(0, equalsPosition);
+            string value = assignment.substr(equalsPosition + 1);
+
+            if (variable.empty())
+            {
+                cout << "export: invalid variable name" << endl;
+                continue;
+            }
+
+            setenv(variable.c_str(), value.c_str(), 1);
+
             continue;
         }
         pid_t pid = fork();
