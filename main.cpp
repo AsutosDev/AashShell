@@ -413,7 +413,25 @@ int main()
             string variable = assignment.substr(0, equalsPosition);
             string value = assignment.substr(equalsPosition + 1);
 
-            if (variable.empty())
+            if (variable.empty() ||
+                !(isalpha(variable[0]) || variable[0] == '_'))
+            {
+                cout << "export: invalid variable name" << endl;
+                continue;
+            }
+
+            bool validVariable = true;
+
+            for (size_t i = 1; i < variable.length(); i++)
+            {
+                if (!(isalnum(variable[i]) || variable[i] == '_'))
+                {
+                    validVariable = false;
+                    break;
+                }
+            }
+
+            if (!validVariable)
             {
                 cout << "export: invalid variable name" << endl;
                 continue;
