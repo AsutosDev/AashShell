@@ -20,7 +20,7 @@ vector<string> parseArguments(const string &command)
         {
             insideQuotes = !insideQuotes;
         }
-        else if (c == ' ' && !insideQuotes)
+        else if (isspace(c) && !insideQuotes)
         {
             if (!arg.empty())
             {
@@ -61,11 +61,6 @@ int main()
             cout << "GoodBye!" << endl;
             break;
         }
-        if (command == "cd")
-        {
-            chdir(getenv("HOME"));
-            continue;
-        }
         size_t redirectPosition = command.find('>');
         size_t inputRedirectPosition = command.find('<');
         bool appendMode = false;
@@ -98,12 +93,6 @@ int main()
             }
 
             int fileDescriptor = open(filePart.c_str(), O_RDONLY);
-
-            if (fileDescriptor == -1)
-            {
-                cout << "Failed to open file!" << endl;
-                continue;
-            }
             pid_t pid = fork();
 
             if (pid == 0)
@@ -183,6 +172,13 @@ int main()
             }
 
             int fileDescriptor = open(filePart.c_str(), flags, 0644);
+
+            if (fileDescriptor == -1)
+            {
+                cout << "Failed to open file!" << endl;
+                continue;
+            }
+
             pid_t pid = fork();
 
             if (pid == 0)
@@ -304,17 +300,6 @@ int main()
 
             continue;
         }
-        if (command.rfind("cd ", 0) == 0)
-        {
-            string path = command.substr(3);
-
-            if (chdir(path.c_str()) != 0)
-            {
-                cout << "cd: directory not found" << endl;
-            }
-
-            continue;
-        }
         if (command == "pwd")
         {
             char cwd[1024];
@@ -326,6 +311,31 @@ int main()
             else
             {
                 cout << "pwd: error getting current directory" << endl;
+            }
+
+            continue;
+        }
+        if (command == "cd" || command.rfind("cd ", 0) == 0)
+        {
+            string path;
+
+            if (command == "cd")
+            {
+                path = getenv("HOME");
+            }
+            else
+            {
+                path = command.substr(3);
+            }
+
+            if (path[0] == '~')
+            {
+                path = string(getenv("HOME")) + path.substr(1);
+            }
+
+            if (chdir(path.c_str()) != 0)
+            {
+                cout << "cd: directory not found" << endl;
             }
 
             continue;
