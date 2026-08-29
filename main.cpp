@@ -47,6 +47,51 @@ vector<string> parseArguments(const string &command)
 
     return arguments;
 }
+int executeSimpleCommand(const string &command)
+{
+    vector<string> arguments = parseArguments(command);
+
+    if (arguments.empty())
+    {
+        return 0;
+    }
+
+    vector<char *> args;
+
+    for (string &argument : arguments)
+    {
+        args.push_back(const_cast<char *>(argument.c_str()));
+    }
+
+    args.push_back(nullptr);
+
+    pid_t pid = fork();
+
+    if (pid == 0)
+    {
+        execvp(args[0], args.data());
+
+        cout << "Command not found!" << endl;
+        exit(1);
+    }
+    else if (pid > 0)
+    {
+        int status;
+        waitpid(pid, &status, 0);
+
+        if (WIFEXITED(status))
+        {
+            return WEXITSTATUS(status);
+        }
+
+        return 1;
+    }
+    else
+    {
+        cout << "Fork failed!" << endl;
+        return 1;
+    }
+}
 int main()
 {
     // cout << "Hello from a process!" << endl;
@@ -477,32 +522,7 @@ int main()
 
             continue;
         }
-        pid_t pid = fork();
-        if (pid == 0)
-        {
-            vector<string> arguments = parseArguments(command);
-            vector<char *> args;
-
-            for (string &argument : arguments)
-            {
-                args.push_back(const_cast<char *>(argument.c_str()));
-            }
-
-            args.push_back(nullptr);
-            execvp(args[0], args.data());
-
-            cout << "Command not found!" << endl;
-            exit(1);
-        }
-        else if (pid > 0)
-        {
-            waitpid(pid, NULL, 0);
-            // cout << "this is a parent process with id: "<<getpid()<<endl;
-        }
-        else
-        {
-            cout << "Error" << endl;
-        }
+        executeSimpleCommand(command);
     }
     return 0;
 }
