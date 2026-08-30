@@ -554,6 +554,18 @@ int main()
 
             continue;
         }
+        if (command == "help")
+        {
+            cout << "AashShell commands:" << endl;
+            cout << "  cd       Change directory" << endl;
+            cout << "  pwd      Print working directory" << endl;
+            cout << "  echo     Print text" << endl;
+            cout << "  export   Set environment variable" << endl;
+            cout << "  unset    Remove environment variable" << endl;
+            cout << "  exit     Exit AashShell" << endl;
+            cout << "  help     Show this help message" << endl;
+            continue;
+        }
         executeSimpleCommand(command);
     }
     return 0;
