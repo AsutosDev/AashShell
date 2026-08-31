@@ -339,7 +339,75 @@ int main()
 
             continue;
         }
+        bool invalidPipe = false;
 
+for (size_t i = 0; i < command.length(); i++)
+{
+    if (command[i] != '|')
+    {
+        continue;
+    }
+
+    // Ignore || because it is a logical operator
+    if (i + 1 < command.length() && command[i + 1] == '|')
+    {
+        i++;
+        continue;
+    }
+
+    // Single pipe cannot be first or last
+    if (i == 0 || i == command.length() - 1)
+    {
+        invalidPipe = true;
+        break;
+    }
+
+    // Single pipe cannot be followed by another pipe
+    if (i + 1 < command.length() && command[i + 1] == '|')
+    {
+        invalidPipe = true;
+        break;
+    }
+
+    // Single pipe cannot be preceded by another pipe
+    if (i > 0 && command[i - 1] == '|')
+    {
+        invalidPipe = true;
+        break;
+    }
+
+    // Check whether there is actually a command after the pipe
+    size_t next = i + 1;
+    while (next < command.length() && isspace(command[next]))
+    {
+        next++;
+    }
+
+    if (next == command.length() || command[next] == '|')
+    {
+        invalidPipe = true;
+        break;
+    }
+
+    // Check whether there is actually a command before the pipe
+    size_t previous = i;
+    while (previous > 0 && isspace(command[previous - 1]))
+    {
+        previous--;
+    }
+
+    if (previous == 0)
+    {
+        invalidPipe = true;
+        break;
+    }
+}
+
+if (invalidPipe)
+{
+    cout << "AashShell: invalid pipe usage" << endl;
+    continue;
+}    
         size_t pipePosition = command.find('|');
         if (redirectPosition != string::npos)
         {
