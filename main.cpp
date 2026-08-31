@@ -200,6 +200,35 @@ int executePipeline(const string &command)
 
     return 0;
 }
+size_t findOperator(const string &command, const string &op)
+{
+    bool insideSingleQuotes = false;
+    bool insideDoubleQuotes = false;
+
+    for (size_t i = 0; i < command.length(); i++)
+    {
+        char c = command[i];
+
+        if (c == '\'' && !insideDoubleQuotes)
+        {
+            insideSingleQuotes = !insideSingleQuotes;
+        }
+        else if (c == '"' && !insideSingleQuotes)
+        {
+            insideDoubleQuotes = !insideDoubleQuotes;
+        }
+
+        if (!insideSingleQuotes && !insideDoubleQuotes)
+        {
+            if (command.substr(i, op.length()) == op)
+            {
+                return i;
+            }
+        }
+    }
+
+    return string::npos;
+}
 int main()
 {
     // cout << "Hello from a process!" << endl;
@@ -220,9 +249,9 @@ int main()
             cout << "GoodBye!" << endl;
             break;
         }
-        if (command.find("&&") != string::npos)
+        if (findOperator(command, "&&") != string::npos)
         {
-            size_t pos = command.find("&&");
+            size_t pos = findOperator(command, "&&");
 
             string left = command.substr(0, pos);
             string right = command.substr(pos + 2);
@@ -235,9 +264,9 @@ int main()
             }
         }
 
-        if (command.find("||") != string::npos)
+        if (findOperator(command, "||") != string::npos)
         {
-            size_t pos = command.find("||");
+            size_t pos = findOperator(command,  "||");
 
             string left = command.substr(0, pos);
             string right = command.substr(pos + 2);
@@ -249,8 +278,8 @@ int main()
                 continue;
             }
         }
-        size_t redirectPosition = command.find('>');
-        size_t inputRedirectPosition = command.find('<');
+        size_t redirectPosition = findOperator(command, ">");
+        size_t inputRedirectPosition = findOperator(command, "<");
         bool appendMode = false;
 
         if (redirectPosition != string::npos &&
@@ -323,7 +352,7 @@ int main()
 
             continue;
         }
-        size_t orPosition = command.find("||");
+        size_t orPosition = findOperator(command, "||");
 
         if (orPosition != string::npos)
         {
@@ -408,7 +437,7 @@ if (invalidPipe)
     cout << "AashShell: invalid pipe usage" << endl;
     continue;
 }    
-        size_t pipePosition = command.find('|');
+        size_t pipePosition = findOperator(command, "|");
         if (redirectPosition != string::npos)
         {
             string commandPart = command.substr(0, redirectPosition);
@@ -614,7 +643,7 @@ if (invalidPipe)
 
             continue;
         }
-        size_t andPosition = command.find("&&");
+        size_t andPosition = findOperator(command, "&&");
 
         if (andPosition != string::npos)
         {
