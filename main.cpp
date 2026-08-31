@@ -115,22 +115,31 @@ int executePipeline(const string &command)
     vector<string> commands;
     size_t start = 0;
 
-    while (true)
+    bool insideSingleQuotes = false;
+bool insideDoubleQuotes = false;
+
+for (size_t i = 0; i < command.length(); i++)
+{
+    if (command[i] == '\'' && !insideDoubleQuotes)
     {
-        size_t position = command.find('|', start);
-
-        if (position == string::npos)
-        {
-            commands.push_back(command.substr(start));
-            break;
-        }
-
-        commands.push_back(command.substr(start, position - start));
-        start = position + 1;
+        insideSingleQuotes = !insideSingleQuotes;
     }
+    else if (command[i] == '"' && !insideSingleQuotes)
+    {
+        insideDoubleQuotes = !insideDoubleQuotes;
+    }
+    else if (command[i] == '|' &&
+             !insideSingleQuotes &&
+             !insideDoubleQuotes)
+    {
+        commands.push_back(command.substr(start, i - start));
+        start = i + 1;
+    }
+}
+
+commands.push_back(command.substr(start));
 
     vector<pid_t> pids;
-
     int previousRead = -1;
 
     for (size_t i = 0; i < commands.size(); i++)
@@ -150,25 +159,123 @@ int executePipeline(const string &command)
 
         if (pid == 0)
         {
+            // Connect previous pipe to stdin
             if (previousRead != -1)
             {
                 dup2(previousRead, STDIN_FILENO);
                 close(previousRead);
             }
 
-            if (i < commands.size() - 1)
+            // Connect current command to next pipe
+       if (i < commands.size() - 1)
+{
+    dup2(pipefd[1], STDOUT_FILENO);
+    close(pipefd[0]);
+    close(pipefd[1]);
+}
+
+string currentCommand = commands[i];
+
+            // Input redirection <
+            size_t inputRedirectPosition = currentCommand.find('<');
+            if (inputRedirectPosition != string::npos)
             {
-                dup2(pipefd[1], STDOUT_FILENO);
-                close(pipefd[0]);
-                close(pipefd[1]);
+                string filePart =
+                    currentCommand.substr(inputRedirectPosition + 1);
+
+                size_t fileStart = filePart.find_first_not_of(' ');
+                size_t fileEnd = filePart.find_last_not_of(' ');
+
+                if (fileStart != string::npos)
+                {
+                    filePart =
+                        filePart.substr(fileStart, fileEnd - fileStart + 1);
+                }
+
+                currentCommand =
+                    currentCommand.substr(0, inputRedirectPosition);
+
+                int fileDescriptor = open(filePart.c_str(), O_RDONLY);
+
+                if (fileDescriptor == -1)
+                {
+                    cout << "Failed to open file!" << endl;
+                    exit(1);
+                }
+
+                dup2(fileDescriptor, STDIN_FILENO);
+                close(fileDescriptor);
             }
 
-            vector<string> arguments = parseArguments(commands[i]);
+            // Output redirection > or >>
+            size_t redirectPosition = currentCommand.find('>');
+
+            if (redirectPosition != string::npos)
+            {
+                bool appendMode = false;
+
+                if (redirectPosition + 1 < currentCommand.length() &&
+                    currentCommand[redirectPosition + 1] == '>')
+                {
+                    appendMode = true;
+                }
+
+                string filePart;
+
+                if (appendMode)
+                {
+                    filePart =
+                        currentCommand.substr(redirectPosition + 2);
+                }
+                else
+                {
+                    filePart =
+                        currentCommand.substr(redirectPosition + 1);
+                }
+
+                size_t fileStart = filePart.find_first_not_of(' ');
+                size_t fileEnd = filePart.find_last_not_of(' ');
+
+                if (fileStart != string::npos)
+                {
+                    filePart =
+                        filePart.substr(fileStart,
+                                        fileEnd - fileStart + 1);
+                }
+
+                currentCommand =
+                    currentCommand.substr(0, redirectPosition);
+
+                int flags = O_WRONLY | O_CREAT;
+
+                if (appendMode)
+                {
+                    flags |= O_APPEND;
+                }
+                else
+                {
+                    flags |= O_TRUNC;
+                }
+
+                int fileDescriptor =
+                    open(filePart.c_str(), flags, 0644);
+
+                if (fileDescriptor == -1)
+                {
+                    cout << "Failed to open file!" << endl;
+                    exit(1);
+                }
+
+                dup2(fileDescriptor, STDOUT_FILENO);
+                close(fileDescriptor);
+            }
+
+            vector<string> arguments =
+                parseArguments(currentCommand);
 
             executeArguments(arguments);
         }
-
-        if (pid > 0)
+        else if (pid > 0)
         {
             pids.push_back(pid);
 
@@ -435,63 +542,8 @@ int main()
             cout << "AashShell: invalid redirection" << endl;
             continue;
         }
-        if (inputRedirectPosition != string::npos)
-        {
-            string commandPart = command.substr(0, inputRedirectPosition);
-            string filePart = command.substr(inputRedirectPosition + 1);
-
-            // Remove leading/trailing spaces from filename
-            size_t start = filePart.find_first_not_of(' ');
-            size_t end = filePart.find_last_not_of(' ');
-
-            if (start != string::npos)
-            {
-                filePart = filePart.substr(start, end - start + 1);
-            }
-
-            int fileDescriptor = open(filePart.c_str(), O_RDONLY);
-            pid_t pid = fork();
-
-            if (pid == 0)
-            {
-                dup2(fileDescriptor, STDIN_FILENO);
-
-                close(fileDescriptor);
-
-                vector<string> arguments = parseArguments(commandPart);
-
-                if (arguments.empty())
-                {
-                    exit(0);
-                }
-
-                vector<char *> args;
-
-                for (string &argument : arguments)
-                {
-                    args.push_back(const_cast<char *>(argument.c_str()));
-                }
-
-                args.push_back(nullptr);
-
-                execvp(args[0], args.data());
-
-                cout << "Command not found!" << endl;
-                exit(1);
-            }
-            else if (pid > 0)
-            {
-                close(fileDescriptor);
-                waitpid(pid, NULL, 0);
-            }
-            else
-            {
-                close(fileDescriptor);
-                cout << "Fork failed!" << endl;
-            }
-
-            continue;
-        }
+        
+        
         size_t orPosition = findOperator(command, "||");
 
         if (orPosition != string::npos)
@@ -578,6 +630,69 @@ int main()
             continue;
         }
         size_t pipePosition = findOperator(command, "|");
+
+        if (pipePosition != string::npos)
+        {
+            executePipeline(command);
+            continue;
+        }
+        if (inputRedirectPosition != string::npos)
+        {
+            string commandPart = command.substr(0, inputRedirectPosition);
+            string filePart = command.substr(inputRedirectPosition + 1);
+
+            // Remove leading/trailing spaces from filename
+            size_t start = filePart.find_first_not_of(' ');
+            size_t end = filePart.find_last_not_of(' ');
+
+            if (start != string::npos)
+            {
+                filePart = filePart.substr(start, end - start + 1);
+            }
+
+            int fileDescriptor = open(filePart.c_str(), O_RDONLY);
+            pid_t pid = fork();
+
+            if (pid == 0)
+            {
+                dup2(fileDescriptor, STDIN_FILENO);
+
+                close(fileDescriptor);
+
+                vector<string> arguments = parseArguments(commandPart);
+
+                if (arguments.empty())
+                {
+                    exit(0);
+                }
+
+                vector<char *> args;
+
+                for (string &argument : arguments)
+                {
+                    args.push_back(const_cast<char *>(argument.c_str()));
+                }
+
+                args.push_back(nullptr);
+
+                execvp(args[0], args.data());
+
+                cout << "Command not found!" << endl;
+                exit(1);
+            }
+            else if (pid > 0)
+            {
+                close(fileDescriptor);
+                waitpid(pid, NULL, 0);
+            }
+            else
+            {
+                close(fileDescriptor);
+                cout << "Fork failed!" << endl;
+            }
+
+            continue;
+        }
         if (redirectPosition != string::npos)
         {
             string commandPart = command.substr(0, redirectPosition);
@@ -666,82 +781,6 @@ int main()
                 cout << "Failed to open file!" << endl;
                 continue;
             }
-        }
-
-        if (pipePosition != string::npos)
-        {
-            executePipeline(command);
-            continue;
-            string firstCommand = command.substr(0, pipePosition);
-            string secondCommand = command.substr(pipePosition + 1);
-
-            int pipefd[2];
-
-            if (pipe(pipefd) == -1)
-            {
-                cout << "Pipe creation failed!" << endl;
-                continue;
-            }
-
-            pid_t firstPid = fork();
-
-            if (firstPid == 0)
-            {
-                dup2(pipefd[1], STDOUT_FILENO);
-
-                close(pipefd[0]);
-                close(pipefd[1]);
-
-                vector<string> arguments = parseArguments(firstCommand);
-
-                vector<char *> args;
-
-                for (string &argument : arguments)
-                {
-                    args.push_back(const_cast<char *>(argument.c_str()));
-                }
-
-                args.push_back(nullptr);
-
-                execvp(args[0], args.data());
-
-                cout << "Command not found!" << endl;
-                exit(1);
-            }
-
-            pid_t secondPid = fork();
-
-            if (secondPid == 0)
-            {
-                dup2(pipefd[0], STDIN_FILENO);
-
-                close(pipefd[0]);
-                close(pipefd[1]);
-
-                vector<string> arguments = parseArguments(secondCommand);
-
-                vector<char *> args;
-
-                for (string &argument : arguments)
-                {
-                    args.push_back(const_cast<char *>(argument.c_str()));
-                }
-
-                args.push_back(nullptr);
-
-                execvp(args[0], args.data());
-
-                cout << "Command not found!" << endl;
-                exit(1);
-            }
-
-            close(pipefd[0]);
-            close(pipefd[1]);
-
-            waitpid(firstPid, NULL, 0);
-            waitpid(secondPid, NULL, 0);
-
-            continue;
         }
         if (command == "pwd")
         {
