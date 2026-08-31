@@ -49,7 +49,16 @@ vector<string> parseArguments(const string &command)
 }
 void executeArguments(vector<string> &arguments)
 {
-    executeArguments(arguments);
+    vector<char *> args;
+
+    for (string &argument : arguments)
+    {
+        args.push_back(const_cast<char *>(argument.c_str()));
+    }
+
+    args.push_back(nullptr);
+
+    execvp(args[0], args.data());
 
     cout << "Command not found!" << endl;
     exit(1);
@@ -98,6 +107,98 @@ int executeSimpleCommand(const string &command)
         cout << "Fork failed!" << endl;
         return 1;
     }
+}
+int executePipeline(const string &command)
+{
+    vector<string> commands;
+    size_t start = 0;
+
+    while (true)
+    {
+        size_t position = command.find('|', start);
+
+        if (position == string::npos)
+        {
+            commands.push_back(command.substr(start));
+            break;
+        }
+
+        commands.push_back(command.substr(start, position - start));
+        start = position + 1;
+    }
+
+    vector<pid_t> pids;
+
+    int previousRead = -1;
+
+    for (size_t i = 0; i < commands.size(); i++)
+    {
+        int pipefd[2];
+
+        if (i < commands.size() - 1)
+        {
+            if (pipe(pipefd) == -1)
+            {
+                cout << "Pipe creation failed!" << endl;
+                return 1;
+            }
+        }
+
+        pid_t pid = fork();
+
+        if (pid == 0)
+        {
+            if (previousRead != -1)
+            {
+                dup2(previousRead, STDIN_FILENO);
+                close(previousRead);
+            }
+
+            if (i < commands.size() - 1)
+            {
+                dup2(pipefd[1], STDOUT_FILENO);
+                close(pipefd[0]);
+                close(pipefd[1]);
+            }
+
+            vector<string> arguments = parseArguments(commands[i]);
+
+            executeArguments(arguments);
+        }
+
+        if (pid > 0)
+        {
+            pids.push_back(pid);
+
+            if (previousRead != -1)
+            {
+                close(previousRead);
+            }
+
+            if (i < commands.size() - 1)
+            {
+                close(pipefd[1]);
+                previousRead = pipefd[0];
+            }
+        }
+        else
+        {
+            cout << "Fork failed!" << endl;
+            return 1;
+        }
+    }
+
+    if (previousRead != -1)
+    {
+        close(previousRead);
+    }
+
+    for (pid_t pid : pids)
+    {
+        waitpid(pid, NULL, 0);
+    }
+
+    return 0;
 }
 int main()
 {
@@ -332,6 +433,8 @@ int main()
 
         if (pipePosition != string::npos)
         {
+            executePipeline(command);
+            continue;
             string firstCommand = command.substr(0, pipePosition);
             string secondCommand = command.substr(pipePosition + 1);
 
