@@ -47,6 +47,13 @@ vector<string> parseArguments(const string &command)
 
     return arguments;
 }
+void executeArguments(vector<string> &arguments)
+{
+    executeArguments(arguments);
+
+    cout << "Command not found!" << endl;
+    exit(1);
+}
 int executeSimpleCommand(const string &command)
 {
     vector<string> arguments = parseArguments(command);
