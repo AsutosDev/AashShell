@@ -112,6 +112,35 @@ int main()
             cout << "GoodBye!" << endl;
             break;
         }
+        if (command.find("&&") != string::npos)
+        {
+            size_t pos = command.find("&&");
+
+            string left = command.substr(0, pos);
+            string right = command.substr(pos + 2);
+
+            if (left.find_first_not_of(' ') == string::npos ||
+                right.find_first_not_of(' ') == string::npos)
+            {
+                cout << "AashShell: invalid operator usage" << endl;
+                continue;
+            }
+        }
+
+        if (command.find("||") != string::npos)
+        {
+            size_t pos = command.find("||");
+
+            string left = command.substr(0, pos);
+            string right = command.substr(pos + 2);
+
+            if (left.find_first_not_of(' ') == string::npos ||
+                right.find_first_not_of(' ') == string::npos)
+            {
+                cout << "AashShell: invalid operator usage" << endl;
+                continue;
+            }
+        }
         size_t redirectPosition = command.find('>');
         size_t inputRedirectPosition = command.find('<');
         bool appendMode = false;
