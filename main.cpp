@@ -2,12 +2,10 @@
 #include <string>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sstream>
 #include <vector>
 #include <cstdlib>
 #include <cctype>
 #include <fcntl.h>
-#include <cstdio>
 #include <termios.h>
 using namespace std;
 vector<string> parseArguments(const string &command)
@@ -74,23 +72,11 @@ int executeSimpleCommand(const string &command)
         return 0;
     }
 
-    vector<char *> args;
-
-    for (string &argument : arguments)
-    {
-        args.push_back(const_cast<char *>(argument.c_str()));
-    }
-
-    args.push_back(nullptr);
-
     pid_t pid = fork();
 
     if (pid == 0)
     {
-        execvp(args[0], args.data());
-
-        cout << "Command not found!" << endl;
-        exit(1);
+        executeArguments(arguments);
     }
     else if (pid > 0)
     {
@@ -109,6 +95,7 @@ int executeSimpleCommand(const string &command)
         cout << "Fork failed!" << endl;
         return 1;
     }
+    return 1;
 }
 int executePipeline(const string &command)
 {
@@ -477,7 +464,6 @@ string readCommand(vector<string> &history)
 int main()
 {
     vector<string> history;
-    int historyPosition = -1;
     // cout << "Hello from a process!" << endl;
     string command;
     cout << "Welcome to AashShell!" << endl;
@@ -776,11 +762,6 @@ int main()
             }
 
             continue;
-            if (fileDescriptor == -1)
-            {
-                cout << "Failed to open file!" << endl;
-                continue;
-            }
         }
         if (command == "pwd")
         {
