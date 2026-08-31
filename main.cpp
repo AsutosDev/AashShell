@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cctype>
 #include <fcntl.h>
+#include <cstdio>
+#include <termios.h>
 using namespace std;
 vector<string> parseArguments(const string &command)
 {
@@ -229,8 +231,107 @@ size_t findOperator(const string &command, const string &op)
 
     return string::npos;
 }
+string readCommand(vector<string> &history)
+{
+    termios oldt, newt;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    string command;
+    int historyPosition = history.size();
+
+    while (true)
+    {
+        char c;
+
+        if (read(STDIN_FILENO, &c, 1) <= 0)
+        {
+            break;
+        }
+
+        if (c == '\n')
+        {
+            cout << endl;
+            break;
+        }
+
+        // Arrow keys begin with ESC [
+        if (c == 27)
+        {
+            char sequence[2];
+
+            if (read(STDIN_FILENO, &sequence[0], 1) <= 0)
+                continue;
+
+            if (read(STDIN_FILENO, &sequence[1], 1) <= 0)
+                continue;
+
+            if (sequence[0] == '[')
+            {
+                if (sequence[1] == 'A') // Up arrow
+                {
+                    if (!history.empty() && historyPosition > 0)
+                    {
+                        historyPosition--;
+                        command = history[historyPosition];
+
+                        cout << "\r\033[K";
+                        cout << "aash$ " << command;
+                        cout.flush();
+                    }
+                }
+                else if (sequence[1] == 'B') // Down arrow
+                {
+                    if (historyPosition < (int)history.size() - 1)
+                    {
+                        historyPosition++;
+                        command = history[historyPosition];
+
+                        cout << "\r\033[K";
+                        cout << "aash$ " << command;
+                        cout.flush();
+                    }
+                    else
+                    {
+                        historyPosition = history.size();
+                        command.clear();
+
+                        cout << "\r\033[K";
+                        cout << "aash$ ";
+                        cout.flush();
+                    }
+                }
+            }
+        }
+        else if (c == 127) // Backspace
+        {
+            if (!command.empty())
+            {
+                command.pop_back();
+
+                cout << "\b \b";
+                cout.flush();
+            }
+        }
+        else
+        {
+            command += c;
+            cout << c;
+            cout.flush();
+        }
+    }
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    return command;
+}
 int main()
 {
+    vector<string> history;
+    int historyPosition = -1;
     // cout << "Hello from a process!" << endl;
     string command;
     cout << "Welcome to AashShell!" << endl;
@@ -238,16 +339,16 @@ int main()
     {
 
         cout << "aash$ " << flush;
-        if (!getline(cin, command))
-        {
-            cout << endl;
-            break;
-        }
+        command = readCommand(history);
         if (command == "exit")
         {
             cout << "Exiting AashShell..." << endl;
             cout << "GoodBye!" << endl;
             break;
+        }
+        if (!command.empty())
+        {
+            history.push_back(command);
         }
         if (findOperator(command, "&&") != string::npos)
         {
@@ -266,7 +367,7 @@ int main()
 
         if (findOperator(command, "||") != string::npos)
         {
-            size_t pos = findOperator(command,  "||");
+            size_t pos = findOperator(command, "||");
 
             string left = command.substr(0, pos);
             string right = command.substr(pos + 2);
@@ -370,73 +471,73 @@ int main()
         }
         bool invalidPipe = false;
 
-for (size_t i = 0; i < command.length(); i++)
-{
-    if (command[i] != '|')
-    {
-        continue;
-    }
+        for (size_t i = 0; i < command.length(); i++)
+        {
+            if (command[i] != '|')
+            {
+                continue;
+            }
 
-    // Ignore || because it is a logical operator
-    if (i + 1 < command.length() && command[i + 1] == '|')
-    {
-        i++;
-        continue;
-    }
+            // Ignore || because it is a logical operator
+            if (i + 1 < command.length() && command[i + 1] == '|')
+            {
+                i++;
+                continue;
+            }
 
-    // Single pipe cannot be first or last
-    if (i == 0 || i == command.length() - 1)
-    {
-        invalidPipe = true;
-        break;
-    }
+            // Single pipe cannot be first or last
+            if (i == 0 || i == command.length() - 1)
+            {
+                invalidPipe = true;
+                break;
+            }
 
-    // Single pipe cannot be followed by another pipe
-    if (i + 1 < command.length() && command[i + 1] == '|')
-    {
-        invalidPipe = true;
-        break;
-    }
+            // Single pipe cannot be followed by another pipe
+            if (i + 1 < command.length() && command[i + 1] == '|')
+            {
+                invalidPipe = true;
+                break;
+            }
 
-    // Single pipe cannot be preceded by another pipe
-    if (i > 0 && command[i - 1] == '|')
-    {
-        invalidPipe = true;
-        break;
-    }
+            // Single pipe cannot be preceded by another pipe
+            if (i > 0 && command[i - 1] == '|')
+            {
+                invalidPipe = true;
+                break;
+            }
 
-    // Check whether there is actually a command after the pipe
-    size_t next = i + 1;
-    while (next < command.length() && isspace(command[next]))
-    {
-        next++;
-    }
+            // Check whether there is actually a command after the pipe
+            size_t next = i + 1;
+            while (next < command.length() && isspace(command[next]))
+            {
+                next++;
+            }
 
-    if (next == command.length() || command[next] == '|')
-    {
-        invalidPipe = true;
-        break;
-    }
+            if (next == command.length() || command[next] == '|')
+            {
+                invalidPipe = true;
+                break;
+            }
 
-    // Check whether there is actually a command before the pipe
-    size_t previous = i;
-    while (previous > 0 && isspace(command[previous - 1]))
-    {
-        previous--;
-    }
+            // Check whether there is actually a command before the pipe
+            size_t previous = i;
+            while (previous > 0 && isspace(command[previous - 1]))
+            {
+                previous--;
+            }
 
-    if (previous == 0)
-    {
-        invalidPipe = true;
-        break;
-    }
-}
+            if (previous == 0)
+            {
+                invalidPipe = true;
+                break;
+            }
+        }
 
-if (invalidPipe)
-{
-    cout << "AashShell: invalid pipe usage" << endl;
-    continue;
-}    
+        if (invalidPipe)
+        {
+            cout << "AashShell: invalid pipe usage" << endl;
+            continue;
+        }
         size_t pipePosition = findOperator(command, "|");
         if (redirectPosition != string::npos)
         {
