@@ -241,6 +241,7 @@ string readCommand(vector<string> &history)
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
     string command;
+    size_t cursorPosition = 0;
     int historyPosition = history.size();
 
     while (true)
@@ -277,6 +278,7 @@ string readCommand(vector<string> &history)
                     {
                         historyPosition--;
                         command = history[historyPosition];
+                        cursorPosition = command.length();
 
                         cout << "\r\033[K";
                         cout << "aash$ " << command;
@@ -289,6 +291,7 @@ string readCommand(vector<string> &history)
                     {
                         historyPosition++;
                         command = history[historyPosition];
+                        cursorPosition = command.length();
 
                         cout << "\r\033[K";
                         cout << "aash$ " << command;
@@ -298,28 +301,64 @@ string readCommand(vector<string> &history)
                     {
                         historyPosition = history.size();
                         command.clear();
+                        cursorPosition = 0;
 
                         cout << "\r\033[K";
                         cout << "aash$ ";
                         cout.flush();
                     }
                 }
+                else if (sequence[1] == 'D') // Left arrow
+                {
+                    if (cursorPosition > 0)
+                    {
+                        cursorPosition--;
+                        cout << "\033[D";
+                        cout.flush();
+                    }
+                }
+                else if (sequence[1] == 'C') // Right arrow
+                {
+                    if (cursorPosition < command.length())
+                    {
+                        cursorPosition++;
+                        cout << "\033[C";
+                        cout.flush();
+                    }
+                }
             }
         }
-        else if (c == 127) // Backspace
+        else if (c == 127)
         {
-            if (!command.empty())
+            if (cursorPosition > 0)
             {
-                command.pop_back();
+                command.erase(cursorPosition - 1, 1);
+                cursorPosition--;
 
-                cout << "\b \b";
+                cout << "\r\033[K";
+                cout << "aash$ " << command;
+
+                for (size_t i = cursorPosition; i < command.length(); i++)
+                {
+                    cout << '\b';
+                }
+
                 cout.flush();
             }
         }
         else
         {
-            command += c;
-            cout << c;
+            command.insert(cursorPosition, 1, c);
+            cursorPosition++;
+
+            cout << "\r\033[K";
+            cout << "aash$ " << command;
+
+            for (size_t i = cursorPosition; i < command.length(); i++)
+            {
+                cout << '\b';
+            }
+
             cout.flush();
         }
     }
