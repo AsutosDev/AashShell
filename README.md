@@ -88,7 +88,3 @@ AashShell v1.0.0 is the first stable release.
 AashShell is an educational project and does not aim to replace a full-featured shell such as `bash` or `zsh`.
 
 Some advanced shell features are not currently supported.
-
-## License
-
-This project is available for educational and personal use.
